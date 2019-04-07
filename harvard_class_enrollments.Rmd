@@ -19,20 +19,23 @@ download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files
               destfile = "enroll_19.xlsx",
               mode = "wb")
 
-download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_03.06.18.xlsx",
-              destfile = "enroll_18.xlsx",
+download.file(url = "http://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_2017_03_07_final_0.xlsx",
+              destfile = "enroll_17.xlsx",
               mode = "wb")
 
 # Read in enrollment statistics to environment
-enrollment_2019 <- read_xlsx("enroll_19.xlsx", skip = 3) %>% 
+e_19 <- read_xlsx("enroll_19.xlsx", skip = 3) %>% 
   clean_names(case = "snake") %>%
   filter(!is.na(course_name))
 
-enrollment_2018 <- read_xlsx("enroll_18.xlsx", skip = 3) %>% 
-  clean_names(case = "snake") %>% 
+e_17 <- read_xlsx("enroll_17.xlsx", skip = 3) %>% 
+  clean_names(case = "snake") %>%
   filter(!is.na(course_name))
 
 # Delete downloaded files
-fs::file_delete(c("enroll_19.xlsx","enroll_18.xlsx"))
+fs::file_delete(c("enroll_19.xlsx","enroll_17.xlsx"))
 ```
 
+# Introduction
+
+How has Harvard changed over small periods of time? In this project, I will be analyzing the changes in Harvard's course enrollment over a 2 year time-frame. I chose this particular period because I have previously modeled changes over a 1 year period and wanted to see how its extension to 2 years.
