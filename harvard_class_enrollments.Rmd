@@ -1,0 +1,16 @@
+---
+title: "An Analysis of Harvard Class Enrollment Over Time"
+author: "Taehwan Kim"
+date: "4/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
+
+# Load in libraries
+library(fs)
+library(readxl)
+library(janitor)
+library(tidyverse)
+```
