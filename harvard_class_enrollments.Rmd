@@ -11,7 +11,9 @@ knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
 # Load in libraries
 library(fs)
 library(readxl)
+library(ggthemes)
 library(janitor)
+library(scales)
 library(tidyverse)
 
 # Download enrollment data
@@ -19,8 +21,8 @@ download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files
               destfile = "enroll_19.xlsx",
               mode = "wb")
 
-download.file(url = "http://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_2017_03_07_final_0.xlsx",
-              destfile = "enroll_17.xlsx",
+download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_03.06.18.xlsx",
+              destfile = "enroll_18.xlsx",
               mode = "wb")
 
 # Read in enrollment statistics to environment
@@ -28,14 +30,62 @@ e_19 <- read_xlsx("enroll_19.xlsx", skip = 3) %>%
   clean_names(case = "snake") %>%
   filter(!is.na(course_name))
 
-e_17 <- read_xlsx("enroll_17.xlsx", skip = 3) %>% 
+e_18 <- read_xlsx("enroll_18.xlsx", skip = 3) %>% 
   clean_names(case = "snake") %>%
   filter(!is.na(course_name))
 
 # Delete downloaded files
-fs::file_delete(c("enroll_19.xlsx","enroll_17.xlsx"))
+fs::file_delete(c("enroll_19.xlsx","enroll_18.xlsx"))
 ```
 
 # Introduction
 
-How has Harvard changed over small periods of time? In this project, I will be analyzing the changes in Harvard's course enrollment over a 2 year time-frame. I chose this particular period because I have previously modeled changes over a 1 year period and wanted to see how its extension to 2 years.
+How has Harvard changed over small periods of time? In this project, I will be analyzing the changes in Harvard's course enrollment over a year time-frame.
+
+# Changes in Enrollment
+
+First, let's look at courses that had changes in enrollment.
+
+```{r popular}
+
+# Function to determine enrollment difference between years as increase, decrease, or no change
+change_type <- function(n) {
+  ifelse(n == 0, "No Change", ifelse(n > 0, "Increase", "Decrease"))
+}
+
+
+
+
+# Create database of 
+enrollments <- inner_join(e_19, e_18, by = c("course_id", "course_department"), suffix = c(".19", ".18"))
+
+changes <- enrollments %>%
+  select(course_id, course_department, course_title.18, course_title.19, u_grad.19, u_grad.18, grad.19, grad.18, total.19, total.18) %>%
+  mutate(change = u_grad.19 - u_grad.18) %>%
+  mutate(pct_ugrad.18 = u_grad.18 / total.18) %>% 
+  mutate(pct_ugrad.19 = u_grad.19 / total.19) %>% 
+  mutate(change_type = change_type(change)) 
+
+changes %>% 
+  ggplot(aes(x = total.18, y = pct_ugrad.18, color = change_type)) +
+  scale_y_continuous(labels = percent) +
+  geom_jitter()
+
+
+withdraws <- enrollments %>% 
+  select(course_id, u_grad.19, u_grad.18, withdraw.18, withdraw.19) %>% 
+  mutate(withdraw_change = withdraw.19 - withdraw.18) %>% 
+  mutate(withdrawals = change_type(withdraw_change)) %>% 
+  filter(u_grad.19 != 0) %>% 
+  filter(u_grad.18 != 0)
+
+# More withdrawals
+withdraws %>% 
+  ggplot(aes(x = u_grad.18, y = u_grad.19, color = withdrawals, size = abs(withdraw_change))) +
+  geom_jitter() +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
+  theme_gdocs()
+
+```
+
