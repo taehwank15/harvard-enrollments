@@ -13,10 +13,12 @@ library(fs)
 library(readxl)
 library(ggthemes)
 library(janitor)
+library(ggrepel)
 library(scales)
 library(tidyverse)
 
 # Download enrollment data
+
 download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files/class_enrollment_summary_by_term_3.22.19.xlsx",
               destfile = "enroll_19.xlsx",
               mode = "wb")
@@ -26,6 +28,7 @@ download.file(url = "https://registrar.fas.harvard.edu/files/fas-registrar/files
               mode = "wb")
 
 # Read in enrollment statistics to environment
+
 e_19 <- read_xlsx("enroll_19.xlsx", skip = 3) %>% 
   clean_names(case = "snake") %>%
   filter(!is.na(course_name))
@@ -35,6 +38,7 @@ e_18 <- read_xlsx("enroll_18.xlsx", skip = 3) %>%
   filter(!is.na(course_name))
 
 # Delete downloaded files
+
 fs::file_delete(c("enroll_19.xlsx","enroll_18.xlsx"))
 ```
 
@@ -48,44 +52,69 @@ First, let's look at courses that had changes in enrollment.
 
 ```{r popular}
 
-# Function to determine enrollment difference between years as increase, decrease, or no change
+# Function to determine withdraw difference between years as increase, decrease, or no change
+
 change_type <- function(n) {
   ifelse(n == 0, "No Change", ifelse(n > 0, "Increase", "Decrease"))
 }
 
+# Create dataframe containing both course enrollment data
 
-
-
-# Create database of 
-enrollments <- inner_join(e_19, e_18, by = c("course_id", "course_department"), suffix = c(".19", ".18"))
-
-changes <- enrollments %>%
-  select(course_id, course_department, course_title.18, course_title.19, u_grad.19, u_grad.18, grad.19, grad.18, total.19, total.18) %>%
-  mutate(change = u_grad.19 - u_grad.18) %>%
-  mutate(pct_ugrad.18 = u_grad.18 / total.18) %>% 
-  mutate(pct_ugrad.19 = u_grad.19 / total.19) %>% 
-  mutate(change_type = change_type(change)) 
-
-changes %>% 
-  ggplot(aes(x = total.18, y = pct_ugrad.18, color = change_type)) +
-  scale_y_continuous(labels = percent) +
-  geom_jitter()
+enrollments <- inner_join(e_19, e_18, by = c("course_id", "course_name"), suffix = c(".19", ".18"))
 
 
 withdraws <- enrollments %>% 
-  select(course_id, u_grad.19, u_grad.18, withdraw.18, withdraw.19) %>% 
+  select(course_id, course_name, u_grad.19, u_grad.18, withdraw.18, withdraw.19) %>% 
   mutate(withdraw_change = withdraw.19 - withdraw.18) %>% 
   mutate(withdrawals = change_type(withdraw_change)) %>% 
   filter(u_grad.19 != 0) %>% 
-  filter(u_grad.18 != 0)
+  filter(u_grad.18 != 0) %>% 
+  
+  # Change order so plot order can be changed in scatterplot
+  
+  arrange(desc(withdrawals))
 
-# More withdrawals
-withdraws %>% 
-  ggplot(aes(x = u_grad.18, y = u_grad.19, color = withdrawals, size = abs(withdraw_change))) +
-  geom_jitter() +
+# Color codes of Decrease, Increase, No Change for graph
+# because Decrease in withdraw is actually good
+
+colors <- c("#139E34", "#B62222", "#C5C5C5")
+
+# Graphing withdraw differences
+
+p3 <- withdraws %>% 
+  ggplot(aes(x = u_grad.18, y = u_grad.19, color = withdrawals, size = abs(withdraw_change), alpha = 0.2)) +
+  
+  # Create scatterplot
+  
+  geom_point() +
+  
+  # Change scale of axes so graph is more dense
+  
   scale_x_sqrt() +
   scale_y_sqrt() +
-  theme_gdocs()
-
+  
+  # Label graph and axes
+  
+  labs(title = "Change in Number of Students Withdrawing",
+       subtitle = "in Spring Harvard Courses in 2018 and 2019",
+       caption = "Source: FAS Harvard Registrar",
+       size = "Size of Change",
+       color = "Change in Num. Withdraws") +
+  xlab("Number of Undergraduates in 2018") +
+  ylab("Number of Undergraduates in 2019") +
+  
+  # Change color for withdraw type 
+  
+  scale_color_manual(values = colors) +
+  
+  # Change graph theme
+  
+  theme_tufte() +
+  
+  # Override legend size and position
+  
+  theme(legend.position = "right", legend.key.size = unit(0.5, "cm")) +
+  scale_alpha(guide = "none") +
+  scale_size(guide = guide_legend(reverse = TRUE))
 ```
 
