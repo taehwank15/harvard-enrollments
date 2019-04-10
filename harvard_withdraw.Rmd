@@ -1,5 +1,5 @@
 ---
-title: "An Analysis of Harvard Class Enrollment Over Time"
+title: "Withdrawal in Harvard Courses"
 author: "Taehwan Kim"
 date: "4/6/2019"
 output: html_document
@@ -46,9 +46,9 @@ fs::file_delete(c("enroll_19.xlsx","enroll_18.xlsx"))
 
 How has Harvard changed over small periods of time? In this project, I will be analyzing the changes in Harvard's course enrollment over a year time-frame.
 
-# Changes in Enrollment
+# Withdrawing Courses
 
-First, let's look at courses that had changes in enrollment.
+Every year, a few students withdraw from courses that they commit to because of a variety of reasons; that may just be students' personal issues. However, here, I show the classes whose withdrawal number has actually increased, noting that more people are dropping out as time has progressed.
 
 ```{r popular}
 
@@ -60,13 +60,23 @@ change_type <- function(n) {
 
 # Create dataframe containing both course enrollment data
 
-enrollments <- inner_join(e_19, e_18, by = c("course_id", "course_name"), suffix = c(".19", ".18"))
+enrollments <- inner_join(e_19, e_18, by = c("course_id"), suffix = c(".19", ".18"))
 
+# Create dataframe with necessary data for graphing
 
 withdraws <- enrollments %>% 
-  select(course_id, course_name, u_grad.19, u_grad.18, withdraw.18, withdraw.19) %>% 
+  
+  # Choose only used variables
+  
+  select(course_id, course_title.19, u_grad.19, u_grad.18, withdraw.18, withdraw.19) %>% 
+  
+  #  Calculate changes in withdrawals and what kind of change
+  
   mutate(withdraw_change = withdraw.19 - withdraw.18) %>% 
   mutate(withdrawals = change_type(withdraw_change)) %>% 
+  
+  # Look at only courses that are run in both years
+  
   filter(u_grad.19 != 0) %>% 
   filter(u_grad.18 != 0) %>% 
   
@@ -75,18 +85,18 @@ withdraws <- enrollments %>%
   arrange(desc(withdrawals))
 
 # Color codes of Decrease, Increase, No Change for graph
-# because Decrease in withdraw is actually good
+# Decrease is green because a decrease in withdraw is actually good
 
 colors <- c("#139E34", "#B62222", "#C5C5C5")
 
 # Graphing withdraw differences
 
-p3 <- withdraws %>% 
-  ggplot(aes(x = u_grad.18, y = u_grad.19, color = withdrawals, size = abs(withdraw_change), alpha = 0.2)) +
+withdraws %>% 
+  ggplot(aes(x = u_grad.18, y = u_grad.19, size = abs(withdraw_change))) +
   
   # Create scatterplot
   
-  geom_point() +
+  geom_point(aes(color = withdrawals, alpha = 0.2)) +
   
   # Change scale of axes so graph is more dense
   
@@ -107,14 +117,22 @@ p3 <- withdraws %>%
   
   scale_color_manual(values = colors) +
   
-  # Change graph theme
-  
+  # Change graph to theme without grid lines because 
+  # scale makes lines look disorganized
+
   theme_tufte() +
-  
+
   # Override legend size and position
   
   theme(legend.position = "right", legend.key.size = unit(0.5, "cm")) +
   scale_alpha(guide = "none") +
-  scale_size(guide = guide_legend(reverse = TRUE))
+  scale_size(guide = guide_legend(reverse = TRUE)) +
+  
+  # Annotate the courses whose withdraws have increased by at least 2
+  
+  geom_text_repel(data = subset(withdraws, abs(withdraw_change) >= 2), mapping = aes(label = course_title.19), size = 2)
+
+
+
 ```
 
